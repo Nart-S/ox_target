@@ -238,7 +238,32 @@ local function startTargeting()
             local _, _, raycastCoords = utils.raycastFromCursor(flag, 20)
             local playerDistToTarget = #(playerCoords - raycastCoords)
 
-            if playerDistToTarget > lockedMaxDistance then
+            local allOptionsHidden = true
+            for _, v in pairs(options) do
+                for i = 1, #v do
+                    local opt = v[i]
+                    if playerDistToTarget <= (opt.distance or 7) then
+                        allOptionsHidden = false
+                        break
+                    end
+                end
+                if not allOptionsHidden then break end
+            end
+            if allOptionsHidden and nearbyZones then
+                for i = 1, #nearbyZones do
+                    local zoneOpts = nearbyZones[i].options
+                    for j = 1, #zoneOpts do
+                        local opt = zoneOpts[j]
+                        if playerDistToTarget <= (opt.distance or 7) then
+                            allOptionsHidden = false
+                            break
+                        end
+                    end
+                    if not allOptionsHidden then break end
+                end
+            end
+
+            if allOptionsHidden then
                 optionsLocked = false
                 lockTime = 0
                 lockedTargetCoords = nil
