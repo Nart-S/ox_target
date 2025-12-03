@@ -31,6 +31,7 @@ local nearbyZones
 
 -- Toggle ox_target, instead of holding the hotkey
 local toggleHotkey = GetConvarInt('ox_target:toggleHotkey', 0) == 1
+local centerCursor = GetConvarInt('ox_target:centerCursor', 1) == 1
 local targetingStartTime = 0
 local lastStateChange = 0
 local STATE_COOLDOWN = 300
@@ -142,6 +143,10 @@ local function startTargeting()
 
     lastStateChange = now
     state.setActive(true)
+
+    if centerCursor then
+        SetCursorLocation(0.5, 0.5)
+    end
 
     local flag = 511
     local hit, entityHit, endCoords, distance, lastEntity, entityType, entityModel, hasTarget, zonesChanged
@@ -458,14 +463,17 @@ do
         end
     else
         function keybind:onPressed()
-            targetingStartTime = GetGameTimer()
             startTargeting()
+            if state.isActive() then
+                targetingStartTime = GetGameTimer()
+            end
         end
 
         function keybind:onReleased()
-            local now = GetGameTimer()
-            if now - lastStateChange < STATE_COOLDOWN then return end
-            if now - targetingStartTime < 200 then return end
+            if not state.isActive() then return end
+
+            -- Grace period to prevent instant close from spurious releases
+            if GetGameTimer() - targetingStartTime < 200 then return end
 
             state.setActive(false)
         end

@@ -44,6 +44,9 @@ setr ox_target:outlineColor "0,150,255,255"
 
 # Disable vignette/darkened corners effect (default: 1 = enabled)
 setr ox_target:vignette 0
+
+# Center cursor on screen when targeting starts (default: 1 = enabled)
+setr ox_target:centerCursor 0
 ```
 
 ---
