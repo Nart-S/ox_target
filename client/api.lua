@@ -546,6 +546,24 @@ function api.entityHasTargets(entity, entityType, model)
     return false
 end
 
+---Check if an entity has specific targets (model, network, or local entity)
+---Excludes global type targets (all vehicles, all objects, etc.) - used for outline drawing
+---@param entity number
+---@param model number
+---@return boolean
+function api.entityHasSpecificTargets(entity, model)
+    if not entity or entity == 0 then return false end
+
+    if model and models[model] and #models[model] > 0 then return true end
+
+    local netId = NetworkGetEntityIsNetworked(entity) and NetworkGetNetworkIdFromEntity(entity)
+    if netId and entities[netId] and #entities[netId] > 0 then return true end
+
+    if localEntities[entity] and #localEntities[entity] > 0 then return true end
+
+    return false
+end
+
 function api.getEntityTargetDistance(entity, entityType, model)
     if not entity or entity == 0 then return 7 end
 
@@ -576,6 +594,40 @@ function api.getEntityTargetDistance(entity, entityType, model)
     end
 
     return minDistance
+end
+
+---Get the max interaction distance for specific entity targets only (excludes global type targets)
+---Used for outline distance calculation
+---@param entity number
+---@param model number
+---@return number
+function api.getEntitySpecificTargetDistance(entity, model)
+    if not entity or entity == 0 then return 0 end
+
+    local maxDistance = 0
+
+    local function checkOptions(opts)
+        if not opts then return end
+        for i = 1, #opts do
+            local dist = opts[i].distance or 7
+            if dist > maxDistance then maxDistance = dist end
+        end
+    end
+
+    if model and models[model] then
+        checkOptions(models[model])
+    end
+
+    local netId = NetworkGetEntityIsNetworked(entity) and NetworkGetNetworkIdFromEntity(entity)
+    if netId and entities[netId] then
+        checkOptions(entities[netId])
+    end
+
+    if localEntities[entity] then
+        checkOptions(localEntities[entity])
+    end
+
+    return maxDistance
 end
 
 return api

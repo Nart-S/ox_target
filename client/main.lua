@@ -308,8 +308,9 @@ local function startTargeting()
         end
 
         if drawOutline then
-            local maxDist = outlineUseTargetDistance and api.getEntityTargetDistance(entityHit, entityType, entityModel) or outlineDistance
-            local shouldOutline = entityHit > 0 and entityType ~= 1 and distance <= maxDist and api.entityHasTargets(entityHit, entityType, entityModel)
+            local maxDist = api.getEntitySpecificTargetDistance(entityHit, entityModel)
+            if maxDist == 0 then maxDist = outlineDistance end
+            local shouldOutline = entityHit > 0 and entityType ~= 1 and distance <= maxDist and api.entityHasSpecificTargets(entityHit, entityModel)
 
             if shouldOutline and outlinedEntity ~= entityHit then
                 if outlinedEntity then
