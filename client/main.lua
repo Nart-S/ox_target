@@ -234,26 +234,41 @@ local function startTargeting()
         end
 
         if optionsLocked then
+            if GetGameTimer() - lockTime < 500 then
+                Wait(50)
+                goto continue
+            end
+
+            if not lockedTargetCoords then
+                Wait(50)
+                goto continue
+            end
+
             local playerCoords = GetEntityCoords(cache.ped)
             local playerDistToTarget = #(playerCoords - lockedTargetCoords)
 
+            local hasAnyOptions = false
             local allOptionsHidden = true
+
             for _, v in pairs(options) do
                 for i = 1, #v do
+                    hasAnyOptions = true
                     local opt = v[i]
-                    if playerDistToTarget <= (opt.distance or 7) then
+                    if playerDistToTarget <= (opt.distance or 3.0) + 1.0 then
                         allOptionsHidden = false
                         break
                     end
                 end
                 if not allOptionsHidden then break end
             end
-            if allOptionsHidden and nearbyZones then
+
+            if nearbyZones then
                 for i = 1, #nearbyZones do
                     local zoneOpts = nearbyZones[i].options
                     for j = 1, #zoneOpts do
+                        hasAnyOptions = true
                         local opt = zoneOpts[j]
-                        if playerDistToTarget <= (opt.distance or 7) then
+                        if playerDistToTarget <= (opt.distance or 3.0) + 1.0 then
                             allOptionsHidden = false
                             break
                         end
@@ -262,7 +277,7 @@ local function startTargeting()
                 end
             end
 
-            if allOptionsHidden then
+            if hasAnyOptions and allOptionsHidden then
                 optionsLocked = false
                 lockTime = 0
                 lockedTargetCoords = nil
