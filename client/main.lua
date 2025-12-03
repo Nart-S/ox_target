@@ -31,6 +31,9 @@ local nearbyZones
 
 -- Toggle ox_target, instead of holding the hotkey
 local toggleHotkey = GetConvarInt('ox_target:toggleHotkey', 0) == 1
+local targetingStartTime = 0
+local lastStateChange = 0
+local STATE_COOLDOWN = 300
 local mouseButton = GetConvarInt('ox_target:leftClick', 1) == 1 and 24 or 25
 local debug = GetConvarInt('ox_target:debug', 0) == 1
 local drawOutline = GetConvarInt('ox_target:drawOutline', 1) == 1
@@ -133,8 +136,11 @@ local function shouldHide(option, distance, endCoords, entityHit, entityType, en
 end
 
 local function startTargeting()
+    local now = GetGameTimer()
+    if now - lastStateChange < STATE_COOLDOWN then return end
     if state.isDisabled() or state.isActive() or IsNuiFocused() or IsPauseMenuActive() then return end
 
+    lastStateChange = now
     state.setActive(true)
 
     local flag = 511
@@ -142,6 +148,7 @@ local function startTargeting()
     local zones = {}
     local optionsLocked = false
     local lockTime = 0
+    local lockedMaxDistance = 7
     local outlinedEntity = nil
 
     CreateThread(function()
@@ -176,6 +183,30 @@ local function startTargeting()
             elseif hasTarget and IsDisabledControlJustPressed(0, mouseButton) then
                 optionsLocked = true
                 lockTime = GetGameTimer()
+
+                lockedMaxDistance = 7
+                for _, v in pairs(options) do
+                    for i = 1, #v do
+                        local opt = v[i]
+                        if not opt.hide then
+                            local d = opt.distance or 7
+                            if d > lockedMaxDistance then lockedMaxDistance = d end
+                        end
+                    end
+                end
+                if nearbyZones then
+                    for i = 1, #nearbyZones do
+                        local zoneOpts = nearbyZones[i].options
+                        for j = 1, #zoneOpts do
+                            local opt = zoneOpts[j]
+                            if not opt.hide then
+                                local d = opt.distance or 7
+                                if d > lockedMaxDistance then lockedMaxDistance = d end
+                            end
+                        end
+                    end
+                end
+
                 SendNuiMessage('{"event": "lockOptions"}')
             end
 
@@ -200,7 +231,7 @@ local function startTargeting()
             local playerCoords = GetEntityCoords(cache.ped)
             local distanceToTarget = #(playerCoords - currentTarget.coords)
 
-            if distanceToTarget > 10 then
+            if distanceToTarget > lockedMaxDistance then
                 optionsLocked = false
                 lockTime = 0
                 SendNuiMessage('{"event": "unlockOptions"}')
@@ -210,41 +241,11 @@ local function startTargeting()
                 goto continue
             end
 
-            local _, cursorEntityHit, cursorCoords = utils.raycastFromCursor(flag, 20)
+            -- Only check cursor distance when locked - don't unlock for nearby zones/entities
+            local _, _, cursorCoords = utils.raycastFromCursor(flag, 20)
             local cursorDistFromTarget = #(cursorCoords - currentTarget.coords)
 
-            local hasNewEntity = cursorEntityHit > 0 and cursorEntityHit ~= currentTarget.entity
-            if hasNewEntity then
-                local success, result = pcall(GetEntityType, cursorEntityHit)
-                local cursorEntityType = success and result or 0
-                local success2, result2 = pcall(GetEntityModel, cursorEntityHit)
-                local cursorEntityModel = success2 and result2
-                hasNewEntity = api.entityHasTargets(cursorEntityHit, cursorEntityType, cursorEntityModel)
-            end
-
-            local cursorZones, _ = utils.getNearbyZones(cursorCoords)
-            local hasNewZone = false
-            if #cursorZones > 0 then
-                local isDifferentZone = true
-                if nearbyZones and #nearbyZones > 0 then
-                    for i = 1, #cursorZones do
-                        for j = 1, #nearbyZones do
-                            if cursorZones[i] == nearbyZones[j] then
-                                isDifferentZone = false
-                                break
-                            end
-                        end
-                        if not isDifferentZone then break end
-                    end
-                end
-                hasNewZone = isDifferentZone
-            end
-
-            if hasNewEntity or hasNewZone then
-                optionsLocked = false
-                lockTime = 0
-                SendNuiMessage('{"event": "unlockOptions"}')
-            elseif cursorDistFromTarget > 8 then
+            if cursorDistFromTarget > lockedMaxDistance then
                 optionsLocked = false
                 lockTime = 0
                 SendNuiMessage('{"event": "unlockOptions"}')
@@ -252,10 +253,10 @@ local function startTargeting()
                 hasTarget = false
                 Wait(50)
                 goto continue
-            else
-                Wait(50)
-                goto continue
             end
+
+            Wait(50)
+            goto continue
         end
 
         local playerCoords = GetEntityCoords(cache.ped)
@@ -432,6 +433,7 @@ local function startTargeting()
     options:wipe()
 
     if nearbyZones then table.wipe(nearbyZones) end
+    lastStateChange = GetGameTimer()
 end
 
 do
@@ -445,6 +447,9 @@ do
 
     if toggleHotkey then
         function keybind:onPressed()
+            local now = GetGameTimer()
+            if now - lastStateChange < STATE_COOLDOWN then return end
+
             if state.isActive() then
                 return state.setActive(false)
             end
@@ -452,9 +457,16 @@ do
             return startTargeting()
         end
     else
-        keybind.onPressed = startTargeting
+        function keybind:onPressed()
+            targetingStartTime = GetGameTimer()
+            startTargeting()
+        end
 
         function keybind:onReleased()
+            local now = GetGameTimer()
+            if now - lastStateChange < STATE_COOLDOWN then return end
+            if now - targetingStartTime < 200 then return end
+
             state.setActive(false)
         end
     end
