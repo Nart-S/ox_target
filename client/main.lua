@@ -254,7 +254,7 @@ local function startTargeting()
                 for i = 1, #v do
                     hasAnyOptions = true
                     local opt = v[i]
-                    if playerDistToTarget <= (opt.distance or 3.0) + 1.0 then
+                    if playerDistToTarget <= (opt.distance or 5.0) + 1.0 then
                         allOptionsHidden = false
                         break
                     end
@@ -268,7 +268,7 @@ local function startTargeting()
                     for j = 1, #zoneOpts do
                         hasAnyOptions = true
                         local opt = zoneOpts[j]
-                        if playerDistToTarget <= (opt.distance or 3.0) + 1.0 then
+                        if playerDistToTarget <= (opt.distance or 5.0) + 1.0 then
                             allOptionsHidden = false
                             break
                         end
