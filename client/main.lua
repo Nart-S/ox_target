@@ -605,8 +605,6 @@ RegisterNUICallback('select', function(data, cb)
             currentMenu = option.openMenu ~= 'home' and option.openMenu or nil
 
             options:wipe()
-        else
-            state.setNuiFocus(false)
         end
 
         currentTarget.zone = zone?.id
